@@ -1,0 +1,42 @@
+services:
+  eureka-server:
+    build: ./eureka-server # Папка из проводника
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - fitness-network
+
+  api-gateway:
+    build: ./API_Gateway # На скриншоте папка называется именно так
+    container_name: api-gateway
+    ports:
+      - "8075:8075" # Порт из твоего application.yml
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+    networks:
+      - fitness-network
+
+  trains-service:
+    build: ./Trains-Service # Папка из проводника
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+    networks:
+      - fitness-network
+
+  recommendation-service:
+    build: ./Recommendation-Service # Папка из проводника
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+    networks:
+      - fitness-network
+
+networks:
+  fitness-network:
+    driver: bridge

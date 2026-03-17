@@ -1,70 +1,39 @@
-services:
-  eureka-server:
-    build: ./eureka-server
-    container_name: eureka-server
-    ports:
-      - "8761:8761"
-    networks:
-      - fitness-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/eureka/"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+server:
+  port: 8075
 
-  api-gateway:
-    build: ./API_Gateway
-    container_name: api-gateway
-    ports:
-      - "8075:8075"
-    environment:
-      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-    networks:
-      - fitness-network
+spring:
+  application:
+    name: API_Gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: trains-service
+          uri: lb://TRAINS-SERVICE
+          predicates:
+            - Path=/api/trains/**
+        - id: training-service
+          uri: lb://TRAINING-SERVICE
+          predicates:
+            - Path=/api/training/**
+        - id: nutrition-service
+          uri: lb://NUTRITION-SERVICE
+          predicates:
+            - Path=/api/nutrition/**
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/**
+        - id: recommendation-service
+          uri: lb://RECOMMENDATION-SERVICE
+          predicates:
+            - Path=/api/recommendations/**
 
-  trains-service:
-    build: ./Trains-Service
-    container_name: trains-service
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-    networks:
-      - fitness-network
-
-  recommendation-service:
-    build: ./Recommendation-Service
-    container_name: recommendation-service
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-    networks:
-      - fitness-network
-
-  training-service:
-    build: ./Training-Servive
-    container_name: training-service
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-    networks:
-      - fitness-network
-
-    eureka:
-      client:
-        register-with-eureka: false
-        fetch-registry: false
-        service-url:
-          defaultZone: http://localhost:8761/eureka/
-
-networks:
-  fitness-network:
-    driver: bridge
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://eureka-server:8761/eureka/}
+  instance:
+    prefer-ip-address: true

@@ -1,74 +1,98 @@
-version: '3.8'
+version: "3.8"
+
+networks:
+  fitness-network:
+    driver: bridge
 
 services:
-  # --- СЕРВЕР РЕГИСТРАЦИИ ---
+  # --- EUREKA SERVER ---
   eureka-server:
     build: ./eureka-server
     container_name: eureka-server
     ports:
       - "8761:8761"
     environment:
-      # Эти переменные заменяют ваш блок 'eureka.client' из кода
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
       - EUREKA_CLIENT_FETCH_REGISTRY=false
       - EUREKA_INSTANCE_HOSTNAME=eureka-server
     healthcheck:
-      # Используем проверку через bash, так как curl может отсутствовать в образе
-      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/8761"]
+      test: ["CMD", "curl", "-f", "http://localhost:8761/eureka/"]
       interval: 10s
       timeout: 5s
       retries: 10
     networks:
       - fitness-network
 
-  # --- ШЛЮЗ ---
+  # --- API GATEWAY ---
   api-gateway:
     build: ./API_Gateway
     container_name: api-gateway
     ports:
       - "8075:8075"
     environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
     depends_on:
       eureka-server:
         condition: service_healthy
     networks:
       - fitness-network
 
-  # --- МИКРОСЕРВИСЫ ---
+  # --- TRAINS SERVICE ---
   trains-service:
     build: ./Trains-Service
     container_name: trains-service
     environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
     depends_on:
       eureka-server:
         condition: service_healthy
     networks:
       - fitness-network
 
+  # --- TRAINING SERVICE ---
+  training-service:
+    build: ./Training-Servive
+    container_name: training-service
+    environment:
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - fitness-network
+
+  # --- NUTRITION SERVICE ---
+  nutrition-service:
+    build: ./Nutrition-Service
+    container_name: nutrition-service
+    environment:
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - fitness-network
+
+  # --- NOTIFICATION SERVICE ---
+  notification-service:
+    build: ./Training_Notification
+    container_name: notification-service
+    environment:
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - fitness-network
+
+  # --- RECOMMENDATION SERVICE ---
   recommendation-service:
     build: ./Recommendation-Service
     container_name: recommendation-service
     environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
     depends_on:
       eureka-server:
         condition: service_healthy
     networks:
       - fitness-network
-
-  training-service:
-    build: ./Training-Servive # Проверьте опечатку в названии папки (Servive)
-    container_name: training-service
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-    networks:
-      - fitness-network
-
-networks:
-  fitness-network:
-    driver: bridge

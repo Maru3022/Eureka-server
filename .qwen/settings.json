@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn *)",
+      "Bash(mvnw.cmd *)",
+      "Bash(docker *)",
+      "Bash(\"c:\\program files\\git\\bin\\git.exe\" *)",
+      "Bash(cmd *)",
+      "Bash(dir *)"
+    ]
+  },
+  "$version": 3
+}

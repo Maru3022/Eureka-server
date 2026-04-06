@@ -1,0 +1,13 @@
+# Profile for Eureka Server in cluster mode
+server:
+  port: 8761
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://peer2:8762/eureka/
+  instance:
+    hostname: peer1
+    prefer-ip-address: false

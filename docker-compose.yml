@@ -7,19 +7,20 @@ networks:
 services:
   # --- EUREKA SERVER ---
   eureka-server:
-    build: ./eureka-server
+    build: .
     container_name: eureka-server
     ports:
       - "8761:8761"
     environment:
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
       - EUREKA_CLIENT_FETCH_REGISTRY=false
-      - EUREKA_INSTANCE_HOSTNAME=eureka-server
+      - EUREKA_INSTANCE_HOSTNAME=localhost
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/eureka/"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
     networks:
       - fitness-network
 

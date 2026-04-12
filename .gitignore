@@ -46,3 +46,7 @@ buildNumber.properties
 ### System Files ###
 .DS_Store
 Thumbs.db
+
+### Docker Compose (managed in parent directory) ###
+docker-compose.yml
+docker-compose*.yml

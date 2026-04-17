@@ -1,185 +1,142 @@
-# 🏋️ Fitness Microservices Platform
+# Eureka Server
 
-A Spring Boot microservices application for fitness management, including training, nutrition, recommendations, and notifications — orchestrated via Docker Compose and service discovery with Eureka.
+Service discovery registry for the Fitness Microservices Platform, built with Spring Boot 3.4, Spring Cloud 2024, and Netflix Eureka.
 
----
+## What This Repository Contains
 
-## 📐 Architecture
+This repository is intentionally focused on one responsibility:
 
-```
-Client
-  │
-  ▼
-API Gateway (port 8075)
-  │
-  ├──▶ Trains Service        /api/trains/**
-  ├──▶ Training Service      /api/training/**
-  ├──▶ Nutrition Service     /api/nutrition/**
-  ├──▶ Notification Service  /api/notifications/**
-  └──▶ Recommendation Service /api/recommendations/**
+- running a standalone Eureka Server on port `8761`
+- exposing the standard Eureka registry endpoints
+- providing a polished custom dashboard over the built-in Eureka UI
+- supporting local single-node mode and two-peer cluster mode
 
-All services register with Eureka Server (port 8761)
-```
+There are no domain controllers, services, repositories, or persistence layers in this project. The core behavior comes from `spring-cloud-starter-netflix-eureka-server`.
 
----
+## Architecture Role
 
-## 🧩 Services
+In the wider fitness platform, this service acts as the registry that other microservices use to:
 
-| Service | Container | Port | Description |
-|---|---|---|---|
-| Eureka Server | `eureka-server` | `8761` | Service registry & discovery |
-| API Gateway | `api-gateway` | `8075` | Single entry point, load balancer |
-| Trains Service | `trains-service` | — | Training plans management |
-| Training Service | `training-service` | — | Workout session tracking |
-| Nutrition Service | `nutrition-service` | — | Nutrition & diet management |
-| Notification Service | `notification-service` | — | Training notifications |
-| Recommendation Service | `recommendation-service` | — | Personalized recommendations |
+- register themselves on startup
+- send periodic heartbeats
+- discover peer services through logical names
+- support gateway routing and load-balancing
 
----
+Typical flow:
 
-## 🚀 Getting Started
+1. A downstream service starts.
+2. It registers in Eureka using `defaultZone`.
+3. Eureka stores the instance metadata and health state.
+4. Other services query Eureka to resolve service locations.
 
-### Prerequisites
+## Stack
 
-- [Docker](https://www.docker.com/) & Docker Compose
-- Java 17+
-- Maven or Gradle (for local development)
+- Java 21 runtime
+- Spring Boot `3.4.2`
+- Spring Cloud `2024.0.0`
+- Netflix Eureka Server
+- Spring Boot Actuator
+- Maven Wrapper
+- Docker
 
-### Run with Docker Compose
+## Project Layout
 
-```bash
-# Clone the repository
-git clone <your-repo-url>
-cd <project-folder>
-
-# Build and start all services
-docker-compose up --build
-
-# Run in detached mode
-docker-compose up --build -d
-```
-
-### Stop all services
-
-```bash
-docker-compose down
-```
-
----
-
-## 🔍 Service Discovery (Eureka)
-
-Eureka Server is available at:
-
-```
-http://localhost:8761
-```
-
-All microservices automatically register themselves with Eureka on startup. The API Gateway uses Eureka to perform client-side load balancing (`lb://SERVICE-NAME`).
-
----
-
-## 🌐 API Gateway
-
-The API Gateway runs on port `8075` and routes requests to the appropriate microservice:
-
-| Endpoint prefix | Routes to |
-|---|---|
-| `/api/trains/**` | `TRAINS-SERVICE` |
-| `/api/training/**` | `TRAINING-SERVICE` |
-| `/api/nutrition/**` | `NUTRITION-SERVICE` |
-| `/api/notifications/**` | `NOTIFICATION-SERVICE` |
-| `/api/recommendations/**` | `RECOMMENDATION-SERVICE` |
-
-Example request:
-
-```bash
-curl http://localhost:8075/api/nutrition/foods
-```
-
----
-
-## ⚙️ Configuration
-
-### API Gateway (`application.yml`)
-
-```yaml
-server:
-  port: 8075
-
-spring:
-  application:
-    name: API_Gateway
-  cloud:
-    gateway:
-      discovery:
-        locator:
-          enabled: true
-
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://eureka-server:8761/eureka/}
-  instance:
-    prefer-ip-address: true
-```
-
-### Environment Variables
-
-Each service accepts the following environment variable:
-
-| Variable | Default | Description |
-|---|---|---|
-| `EUREKA_SERVER_URL` | `http://eureka-server:8761/eureka/` | Eureka registry URL |
-
----
-
-## 🐳 Docker Network
-
-All services communicate over a shared Docker bridge network called `fitness-network`. Services can reach each other by container name (e.g., `http://eureka-server:8761`).
-
----
-
-## 🏥 Health Check
-
-The Eureka Server has a health check configured:
-
-```yaml
-healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:8761/eureka/"]
-  interval: 10s
-  timeout: 5s
-  retries: 10
-```
-
-All other services use `depends_on: condition: service_healthy` to wait for Eureka to be ready before starting.
-
----
-
-## 📁 Project Structure
-
-```
+```text
 .
-├── docker-compose.yml
-├── eureka-server/
-│   └── src/main/
-│       ├── java/com/example/eurekaserver/EurekaServerApplication.java
-│       └── resources/application.yml
-├── API_Gateway/
-│   └── src/main/resources/application.yml
-├── Trains-Service/
-├── Training-Servive/
-├── Nutrition-Service/
-├── Training_Notification/
-└── Recommendation-Service/
+|-- src/main/java/com/example/eurekaserver/EurekaServerApplication.java
+|-- src/main/resources/application.yml
+|-- src/main/resources/application-peer1.yml
+|-- src/main/resources/application-peer2.yml
+|-- src/main/resources/templates/eureka/
+|-- src/main/resources/static/eureka/css/wro.css
+|-- src/test/java/com/example/eurekaserver/EurekaServerApplicationTests.java
+|-- Dockerfile
+|-- pom.xml
+`-- DOCUMENTATION.md
 ```
 
----
+## Run Locally
 
-## 🛠️ Tech Stack
+### With Maven Wrapper
 
-- **Java 17+** — Core language
-- **Spring Boot** — Microservice framework
-- **Spring Cloud Netflix Eureka** — Service discovery
-- **Spring Cloud Gateway** — API Gateway & routing
-- **Docker & Docker Compose** — Containerization & orchestration
+```bash
+./mvnw spring-boot:run
+```
+
+On Windows:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+The dashboard will be available at:
+
+```text
+http://localhost:8761/
+```
+
+## Build
+
+```bash
+./mvnw clean package
+```
+
+## Test
+
+```bash
+./mvnw test
+```
+
+## Profiles
+
+### Default
+
+`application.yml` runs a single standalone registry:
+
+- `register-with-eureka: false`
+- `fetch-registry: false`
+
+### Peer 1
+
+```bash
+java -jar target/eureka-server-0.0.1-SNAPSHOT.jar --spring.profiles.active=peer1
+```
+
+### Peer 2
+
+```bash
+java -jar target/eureka-server-0.0.1-SNAPSHOT.jar --spring.profiles.active=peer2
+```
+
+These profiles are meant for clustered Eureka experiments where the nodes replicate registry state between each other.
+
+## Docker
+
+Build the image:
+
+```bash
+docker build -t eureka-server .
+```
+
+Run the container:
+
+```bash
+docker run -p 8761:8761 eureka-server
+```
+
+## UI Customization
+
+The default Eureka dashboard is overridden through classpath resources:
+
+- `src/main/resources/templates/eureka/status.ftlh`
+- `src/main/resources/templates/eureka/lastn.ftlh`
+- `src/main/resources/templates/eureka/header.ftlh`
+- `src/main/resources/static/eureka/css/wro.css`
+
+That keeps the server logic standard while allowing the dashboard to feel more intentional and project-specific.
+
+## Notes
+
+- `target/` is generated build output and should not be committed.
+- This repository currently contains only the registry service, even if the larger platform includes gateway and business services elsewhere.
+- Detailed technical analysis lives in [DOCUMENTATION.md](/C:/Project/eureka-server/DOCUMENTATION.md).

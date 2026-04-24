@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN addgroup -S spring && adduser -S spring -G spring
 
-COPY target/*.jar app.jar
+COPY target/*-exec.jar app.jar
 
 RUN chown spring:spring /app/app.jar
 

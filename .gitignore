@@ -32,6 +32,9 @@ build/
 ### VS Code ###
 .vscode/
 
+### Qwen IDE ###
+.qwen/
+
 ### Maven ###
 pom.xml.tag
 pom.xml.releaseBackup

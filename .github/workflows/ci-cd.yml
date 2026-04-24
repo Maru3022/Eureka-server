@@ -21,14 +21,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
+
+      - name: Make Maven wrapper executable
+        run: chmod +x ./mvnw
 
       - name: Run Maven verify
         run: ./mvnw -B clean verify
@@ -45,24 +48,27 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: latest
+      - name: Install kubectl
+        shell: bash
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          kubectl version --client
 
       - name: Render single-node manifests
         run: kubectl kustomize k8s/single-node > /tmp/eureka-single-node.yaml
 
       - name: Validate single-node manifests
-        run: kubectl apply --dry-run=client -f /tmp/eureka-single-node.yaml
+        run: kubectl create --dry-run=client -f /tmp/eureka-single-node.yaml -o yaml > /dev/null
 
       - name: Render peer-cluster manifests
         run: kubectl kustomize k8s/peer-cluster > /tmp/eureka-peer-cluster.yaml
 
       - name: Validate peer-cluster manifests
-        run: kubectl apply --dry-run=client -f /tmp/eureka-peer-cluster.yaml
+        run: kubectl create --dry-run=client -f /tmp/eureka-peer-cluster.yaml -o yaml > /dev/null
 
   build-and-publish-image:
     name: Build and publish image
@@ -76,7 +82,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download jar artifact
         uses: actions/download-artifact@v4
@@ -124,12 +130,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: latest
+      - name: Install kubectl
+        shell: bash
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          kubectl version --client
 
       - name: Render single-node manifest bundle
         run: kubectl kustomize k8s/single-node > k8s-single-node-rendered.yaml
@@ -157,7 +166,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check deployment prerequisites
         id: deploy_gate
@@ -174,9 +183,12 @@ jobs:
 
       - name: Set up kubectl
         if: steps.deploy_gate.outputs.enabled == 'true'
-        uses: azure/setup-kubectl@v4
-        with:
-          version: latest
+        shell: bash
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          kubectl version --client
 
       - name: Configure kubeconfig
         if: steps.deploy_gate.outputs.enabled == 'true'

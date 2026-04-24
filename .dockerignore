@@ -1,0 +1,15 @@
+.git
+.github
+.idea
+.mvn
+.qwen
+k8s
+src
+target/*
+!target/*.jar
+target/*.original
+README.md
+DOCUMENTATION.md
+mvnw
+mvnw.cmd
+pom.xml

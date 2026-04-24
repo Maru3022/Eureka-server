@@ -2,8 +2,16 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
+RUN addgroup -S spring && adduser -S spring -G spring
+
 COPY target/*.jar app.jar
 
-EXPOSE 8761
+RUN chown spring:spring /app/app.jar
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+USER spring
+
+ENV JAVA_OPTS=""
+
+EXPOSE 8761 8762
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

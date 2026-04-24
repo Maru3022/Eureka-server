@@ -2,191 +2,211 @@
 
 ## 1. Executive Summary
 
-This project is a minimal Spring Boot Eureka registry. Its runtime behavior is simple and reliable, but before the redesign it had three quality gaps:
+The project is still a minimal Eureka registry at the code level, but it is no longer minimal in delivery capabilities. The repository now supports:
 
-1. The visible UI was still the stock Eureka dashboard.
-2. Repository documentation was partially inaccurate for this standalone repo and had encoding issues.
-3. Project presentation was weaker than the underlying implementation quality.
+- Docker packaging for containerized runtime
+- Kubernetes deployment in both `single-node` and `peer-cluster` modes
+- richer runtime configuration through environment variables
+- liveness and readiness probes through Actuator
+- a multi-job CI/CD pipeline with optional deployment
 
-The core server setup itself is sound: a single entry-point application, clean configuration, a smoke test, and a Docker image that packages the built jar.
+This keeps the application small while making the operational story substantially more complete.
 
-## 2. Repository Inventory
+## 2. Current Repository Inventory
 
-### Application Code
+### Application Layer
 
 - `src/main/java/com/example/eurekaserver/EurekaServerApplication.java`
-
-### Configuration
-
 - `src/main/resources/application.yml`
 - `src/main/resources/application-peer1.yml`
 - `src/main/resources/application-peer2.yml`
-
-### Custom UI Overrides
-
-- `src/main/resources/templates/eureka/header.ftlh`
-- `src/main/resources/templates/eureka/status.ftlh`
-- `src/main/resources/templates/eureka/lastn.ftlh`
+- `src/main/resources/templates/eureka/`
 - `src/main/resources/static/eureka/css/wro.css`
 
-### Tests
+### Delivery Layer
+
+- `Dockerfile`
+- `.dockerignore`
+- `.github/workflows/ci-cd.yml`
+- `k8s/single-node/`
+- `k8s/peer-cluster/`
+
+### Test Layer
 
 - `src/test/java/com/example/eurekaserver/EurekaServerApplicationTests.java`
 
-### Build and Delivery
+## 3. Application Architecture
 
-- `pom.xml`
-- `Dockerfile`
-- Maven wrapper files
+### Service Role
 
-## 3. How The Project Is Built
+This service acts as the discovery registry for the wider platform:
 
-### Entry Point
+- downstream services register themselves in Eureka
+- clients discover service locations through the registry
+- peer mode allows two registry nodes to replicate instance state
 
-`EurekaServerApplication` is the only application class. It combines:
+### Code Complexity
 
-- `@SpringBootApplication`
-- `@EnableEurekaServer`
+The Java surface remains intentionally small:
 
-This means the project relies on framework auto-configuration instead of custom business logic.
+- one application bootstrap class
+- framework-provided REST and dashboard behavior
+- no custom business domain model
 
-### Dependency Model
+That is still the correct design for a dedicated infrastructure service.
 
-The build is intentionally lean:
+## 4. Configuration Strategy After The Change
 
-- `spring-boot-starter-actuator`
-- `spring-cloud-starter-netflix-eureka-server`
-- `spring-boot-starter-test`
+### Default Runtime
 
-Spring Cloud dependency versions are aligned through the `spring-cloud-dependencies` BOM.
+`application.yml` is now suitable for both local and container-based runtime because it is parameterized with environment variables.
 
-### Configuration Strategy
+Main improvements:
 
-The configuration is environment-driven and split cleanly:
+- `server.port` can be overridden with `SERVER_PORT`
+- `defaultZone` can be overridden with `EUREKA_DEFAULT_ZONE`
+- hostname and IP behavior can be driven from the environment
+- self-preservation is externally configurable
+- readiness and liveness probes are enabled
 
-- `application.yml` for a standalone local registry
-- `application-peer1.yml` and `application-peer2.yml` for replication experiments
+### Peer Profiles
 
-The default profile disables self-registration and registry fetching, which is correct for a single-node setup.
+`application-peer1.yml` and `application-peer2.yml` are still present, but they now support environment overrides. This matters because Kubernetes peer deployments can keep both pods on the same service port while still pointing each peer at the other peer's service DNS name.
 
-### Containerization
+## 5. Kubernetes Design
 
-The Dockerfile is production-friendly in spirit:
+## 5.1 Single-Node Topology
 
-- Java 21 JRE base image
-- copies the built jar
-- exposes port `8761`
-- runs via `java -jar app.jar`
+Path: `k8s/single-node/`
 
-The image is simple and aligned with the small runtime footprint of the project.
+Use case:
 
-## 4. Runtime Behavior
+- dev clusters
+- demos
+- environments where one registry node is acceptable
 
-### What The Service Does
+Resources included:
 
-At runtime, the server provides:
+- namespace
+- configmap
+- deployment
+- service
+- ingress
+- pod disruption budget
+- network policy
 
-- Eureka registration endpoints under `/eureka/**`
-- the Eureka dashboard at `/`
-- Actuator endpoints under `/actuator/**`
+Operational considerations:
 
-### What It Does Not Do
+- probes are mapped to Actuator liveness and readiness endpoints
+- runtime behavior is controlled by configmap environment variables
+- service exposure is standardized through one Kubernetes service
 
-This project does not include:
+## 5.2 Peer-Cluster Topology
 
-- domain entities
-- REST controllers of its own
-- persistence
-- authentication
-- custom service logic
+Path: `k8s/peer-cluster/`
 
-That is not a weakness here. For a dedicated registry service, this is the correct shape.
+Use case:
 
-## 5. UI / UX Analysis
+- environments where a single registry instance is not desirable
+- teams that want to use the already existing `peer1` and `peer2` profiles
 
-### Before The Redesign
+Resources included:
 
-The user-facing experience was the default Eureka UI:
+- namespace
+- shared client-facing service
+- dedicated peer services
+- `eureka-peer1` deployment
+- `eureka-peer2` deployment
+- ingress
+- pod disruption budget
+- network policy
 
-- outdated visual identity
-- generic branding
-- dense tables with little hierarchy
-- weak mobile feel
-- no product-specific framing for the fitness platform context
+Operational considerations:
 
-### Redesign Direction
+- each peer runs with its corresponding Spring profile
+- both peers expose port `8761` inside Kubernetes for operational consistency
+- peer replication uses Kubernetes service DNS names
+- clients can point at the shared `eureka-registry` service
 
-The new UI keeps the built-in data but changes the presentation:
+## 6. Containerization Changes
 
-- custom branded navigation
-- hero section with platform framing
-- summary statistic cards
-- modern glass-like panels and gradients
-- clearer warning treatment for renewal threshold states
-- cleaner tables and badges
-- mobile-responsive spacing and typography
+The Docker image is now more suitable for orchestrated environments:
 
-### Why This Is The Right Extension Point
+- non-root runtime user
+- `JAVA_OPTS` support for runtime tuning
+- compatibility with packaged jar delivery from the CI pipeline
+- cleaner build context through `.dockerignore`
 
-Eureka already exposes FreeMarker templates and static assets on the classpath. Overriding those resources is the safest way to improve the visual layer without forking framework code or changing registry behavior.
+The image remains intentionally simple, which is good for a registry service.
 
-## 6. Documentation Analysis
+## 7. CI/CD Design
 
-### Issues Found
+The new GitHub Actions pipeline is no longer a basic build-only flow. It now models a real delivery chain.
 
-- `README.md` had encoding corruption.
-- The README described a larger multi-service layout that is not physically present in this repository.
-- The previous documentation mixed accurate Eureka details with references to files such as `docker-compose.yml` that do not exist here.
+### Jobs
 
-### Fixes Applied
+1. `build-and-test`
+   - checks out the repository
+   - restores Maven cache
+   - runs `clean verify`
+   - uploads the packaged jar as an artifact
 
-- rewrote the README with accurate repository scope
-- rewrote the technical documentation in clean UTF-8
-- documented the UI override mechanism explicitly
-- aligned the docs with the files actually present in the repo
+2. `validate-kubernetes`
+   - installs `kubectl`
+   - renders both Kustomize deployment modes
+   - validates them with client-side dry-run
 
-## 7. Code Quality Assessment
+3. `build-and-publish-image`
+   - downloads the packaged jar
+   - builds the container image with Buildx
+   - pushes to GHCR on `main`
+   - keeps PR builds non-publishing
+
+4. `render-manifests`
+   - produces rendered manifest bundles as downloadable artifacts
+
+5. `deploy`
+   - runs only on pushes to `main`
+   - requires `KUBE_CONFIG_DATA`
+   - applies either `single-node` or `peer-cluster`
+   - verifies rollout status
+
+### Why This Is Stronger
+
+The pipeline now validates three layers independently:
+
+- Java application correctness
+- container packaging readiness
+- Kubernetes deployment correctness
+
+That is a meaningful upgrade from a plain Maven run.
+
+## 8. Testing Improvements
+
+The test suite now covers more than context startup:
+
+- context bootstrapping
+- dashboard response at `/`
+- readiness probe response at `/actuator/health/readiness`
+
+This is still lightweight, but it is much more aligned with modern platform deployment checks.
+
+## 9. Risks And Remaining Tradeoffs
 
 ### Strengths
 
-- extremely small maintenance surface
-- standard Spring Boot conventions
-- clear separation between runtime config and code
-- low cognitive load for onboarding
-- smoke test present
+- the application remains simple to understand
+- deployment options are now explicit and versioned
+- health probes and env-driven config make the service much easier to operate
+- the pipeline supports both validation and release concerns
 
-### Weaknesses
+### Remaining Tradeoffs
 
-- limited automated verification beyond context startup
-- no explicit metadata or richer operational docs before rewrite
-- presentation quality lagged behind technical cleanliness
-
-## 8. Risks And Tradeoffs
-
-### Low Risk Changes
-
-The redesign focuses on view-layer overrides and docs, so the behavior risk is low:
-
-- registry APIs remain framework-provided
-- startup path remains unchanged
-- peer profiles remain unchanged
-
-### Remaining Operational Risks
-
-- disabling self-preservation is convenient for development but not ideal for production
-- there is still only one automated test
-- cluster mode assumes hostnames `peer1` and `peer2` are resolvable in the execution environment
-
-## 9. Suggested Next Improvements
-
-If you want to push the project further later, the best next steps are:
-
-1. add a small integration test that verifies the dashboard route returns `200`
-2. expose a curated subset of actuator endpoints intentionally
-3. add build metadata through Spring Boot for version visibility
-4. add container healthcheck guidance to deployment docs
-5. document the expected configuration contract for downstream services
+- the peer cluster is more operationally complex than the single-node mode
+- true production HA still depends on how downstream clients are configured and how ingress/service routing is handled in the target cluster
+- the workflow assumes GHCR and GitHub Actions as the default delivery stack
+- local validation here is limited to Maven tests unless the machine also has Docker and kubectl installed
 
 ## 10. Final Assessment
 
-Architecturally, the project is correct for its purpose. It is not complex, but it is clean. The main opportunity was not backend rework; it was experience design and repository polish. The redesign preserves the solid minimal core while making the service feel much more deliberate, modern, and presentation-ready.
+The repository is no longer just a code wrapper around the Eureka starter. It now has a complete delivery story: runtime configuration for containers, Kubernetes deployment variants, health-aware behavior, and a multi-stage CI/CD path. The service remains intentionally small in code, but it is now much more realistic as an infrastructure component in a modern platform.

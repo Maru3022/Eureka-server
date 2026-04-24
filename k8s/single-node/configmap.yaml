@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eureka-config
+data:
+  SERVER_PORT: "8761"
+  EUREKA_REGISTER_WITH_EUREKA: "false"
+  EUREKA_FETCH_REGISTRY: "false"
+  EUREKA_SELF_PRESERVATION: "false"
+  EUREKA_DEFAULT_ZONE: "http://eureka-server:8761/eureka/"

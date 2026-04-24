@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eureka-server
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: eureka-server
+      app.kubernetes.io/component: registry
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8761

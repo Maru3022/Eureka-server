@@ -8,6 +8,5 @@ resources:
   - configmap.yaml
   - deployment.yaml
   - service.yaml
-  - ingress.yaml
   - pdb.yaml
   - networkpolicy.yaml

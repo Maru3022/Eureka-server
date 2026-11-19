@@ -10,6 +10,5 @@ resources:
   - service-peer2.yaml
   - deployment-peer1.yaml
   - deployment-peer2.yaml
-  - ingress.yaml
   - pdb.yaml
   - networkpolicy.yaml

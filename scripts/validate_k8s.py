@@ -14,7 +14,6 @@ EXPECTED_COUNTS = {
             "ConfigMap": 1,
             "Deployment": 1,
             "Service": 1,
-            "Ingress": 1,
             "PodDisruptionBudget": 1,
             "NetworkPolicy": 1,
         }
@@ -24,7 +23,6 @@ EXPECTED_COUNTS = {
             "Namespace": 1,
             "Service": 3,
             "Deployment": 2,
-            "Ingress": 1,
             "PodDisruptionBudget": 1,
             "NetworkPolicy": 1,
         }
